@@ -1,0 +1,50 @@
+{
+  "name": "pi-codex-token",
+  "version": "1.0.0",
+  "description": "pi provider plugin: use gpt-5.5 on the OpenAI Codex backend via a personal access token (PAT), non-interactively.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi",
+    "pi-extension",
+    "codex",
+    "openai",
+    "gpt-5.5",
+    "provider",
+    "personal-access-token"
+  ],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "echo 'nothing to clean'",
+    "build": "echo 'nothing to build'",
+    "check": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "smoke": "vitest run test/smoke.test.ts",
+    "check-exports": "node scripts/check-exports.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "engines": {
+    "node": ">=20.3"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": ">=0.79.0 <0.80.0",
+    "@earendil-works/pi-coding-agent": ">=0.79.0 <0.80.0",
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.8"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.79.0 <0.80.0",
+    "@earendil-works/pi-coding-agent": ">=0.79.0 <0.80.0"
+  }
+}
