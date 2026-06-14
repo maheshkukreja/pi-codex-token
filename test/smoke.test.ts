@@ -29,7 +29,7 @@ describe("live codex backend", () => {
       const model: Model<Api> = {
         ...FALLBACK_MODELS[0]!,
         api: API_ID,
-        provider: "codex-pat",
+        provider: "codex-token",
         baseUrl: DEFAULT_CODEX_BASE_URL,
       };
       const context: Context = {

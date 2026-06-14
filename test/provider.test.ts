@@ -18,8 +18,8 @@ import { streamCodexPat } from "../src/provider.js";
 const MODEL: Model<Api> = {
   id: "gpt-5.5",
   name: "GPT-5.5 (Codex PAT)",
-  api: "codex-pat-responses",
-  provider: "codex-pat",
+  api: "codex-token-responses",
+  provider: "codex-token",
   baseUrl: "https://placeholder/codex",
   reasoning: true,
   input: ["text"],

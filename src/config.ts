@@ -1,5 +1,5 @@
 /**
- * All constants and env-var names for the codex-pat provider live here.
+ * All constants and env-var names for the codex-token provider live here.
  *
  * The codex backend is an UNDOCUMENTED contract: the betas, headers, and base
  * URLs below can drift without notice. Keeping them in one file means a contract
@@ -8,14 +8,14 @@
  */
 
 /** Provider id registered with pi. */
-export const PROVIDER_NAME = "codex-pat";
+export const PROVIDER_NAME = "codex-token";
 
 /**
  * Custom api id. Required when `streamSimple` is given, and chosen so it never
  * collides with pi's built-in `openai` / `openai-codex` / `openai-responses`.
  * Single source of truth for the api id across the package.
  */
-export const API_ID = "codex-pat-responses";
+export const API_ID = "codex-token-responses";
 
 /** Default codex inference backend. The OpenAI SDK appends `/responses`. */
 export const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";

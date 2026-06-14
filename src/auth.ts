@@ -44,7 +44,7 @@ export class PatAuthError extends Error {
         `token is expired, revoked, or invalid. PATs are NOT auto-refreshable — mint a new one ` +
         `in the ChatGPT admin console (Settings → Personal access tokens) and update ` +
         `${ENV_PAT_PRIMARY} (or the provider apiKey / ~/.codex/auth.json). If you switched workspaces, ` +
-        `also clear the cached account-id at ~/.pi/agent/codex-pat-accountid.json.`,
+        `also clear the cached account-id at ~/.pi/agent/codex-token-accountid.json.`,
     );
     this.name = "PatAuthError";
   }
@@ -79,7 +79,7 @@ function validate(pat: string, source: CredentialSource): ResolvedCredentials {
   }
   if (!pat.startsWith(PAT_PREFIX)) {
     // Don't hard-fail (prefix could drift) but warn — the token is opaque, not a JWT.
-    console.warn(`[codex-pat] PAT does not start with "${PAT_PREFIX}"; proceeding (opaque token).`);
+    console.warn(`[codex-token] PAT does not start with "${PAT_PREFIX}"; proceeding (opaque token).`);
   }
   return { pat, source };
 }
@@ -143,7 +143,7 @@ function patKey(pat: string): string {
 
 function diskCachePath(env: NodeJS.ProcessEnv): string {
   const base = env[ENV_PI_AGENT_HOME] ?? join(homedir(), ".pi", "agent");
-  return join(base, "codex-pat-accountid.json");
+  return join(base, "codex-token-accountid.json");
 }
 
 async function readDiskCache(key: string, env: NodeJS.ProcessEnv): Promise<string | undefined> {
@@ -219,7 +219,7 @@ async function accountIdFromAuthJson(env: NodeJS.ProcessEnv): Promise<string | u
  * Resolve the chatgpt-account-id for a PAT. Order:
  *   1. CODEX_ACCOUNT_ID env override (recommended for headless use — synchronous, no network)
  *   2. in-memory cache (keyed by SHA-256(PAT))
- *   3. on-disk cache (~/.pi/agent/codex-pat-accountid.json, mode 0600, keyed by SHA-256(PAT))
+ *   3. on-disk cache (~/.pi/agent/codex-token-accountid.json, mode 0600, keyed by SHA-256(PAT))
  *   4. whoami(PAT)
  *   5. ~/.codex/auth.json .tokens.account_id (dev convenience only)
  *

@@ -1,7 +1,7 @@
 # pi-codex-token
 
 A [pi](https://github.com/earendil-works/pi) provider extension that registers a
-`codex-pat` provider so pi can use **`gpt-5.5` on the OpenAI Codex backend**
+`codex-token` provider so pi can use **`gpt-5.5` on the OpenAI Codex backend**
 (`chatgpt.com/backend-api/codex`), authenticated **non-interactively with a Codex
 personal/enterprise access token (PAT)**.
 
@@ -30,7 +30,7 @@ This is a no-build, single-file-style pi extension. Run it straight from a clone
 
 ```bash
 npm install                 # installs dev deps + the pi host packages (peer deps)
-pi -e . --provider codex-pat --model gpt-5.5 -p "Reply with exactly: SPIKE_OK"
+pi -e . --provider codex-token --model gpt-5.5 -p "Reply with exactly: SPIKE_OK"
 ```
 
 `pi` resolves the extension's `@earendil-works/pi-*` imports from its own install at
@@ -58,10 +58,10 @@ environment where pi runs (a worker image, CI runner, server) and configure it v
    ```
 
 3. **Select the provider/model** — either per invocation
-   (`pi --provider codex-pat --model gpt-5.5 …`) or via pi's default provider/model config.
+   (`pi --provider codex-token --model gpt-5.5 …`) or via pi's default provider/model config.
 
 At startup pi loads the extension, the async factory discovers the account's models with
-the PAT, and the `codex-pat` provider is ready. Pin a tag/SHA (not a moving branch) for a
+the PAT, and the `codex-token` provider is ready. Pin a tag/SHA (not a moving branch) for a
 reproducible deploy, and gate upgrades on the `npm run smoke` contract test.
 
 ## Credentials
@@ -81,7 +81,7 @@ The `chatgpt-account-id` is a stable workspace UUID resolved in this order:
 
 1. `CODEX_ACCOUNT_ID` env override (**recommended for headless/CI** — no network)
 2. in-memory cache (keyed by `SHA-256(PAT)`)
-3. on-disk cache `~/.pi/agent/codex-pat-accountid.json` (mode 0600, keyed by `SHA-256(PAT)`)
+3. on-disk cache `~/.pi/agent/codex-token-accountid.json` (mode 0600, keyed by `SHA-256(PAT)`)
 4. codex `whoami` (`Authorization: Bearer <PAT>`)
 5. `~/.codex/auth.json` `.tokens.account_id` (local dev only)
 

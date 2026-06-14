@@ -35,7 +35,7 @@ describe("registrationModels", () => {
 });
 
 describe("extension factory", () => {
-  it("registers the codex-pat provider with the assembled config + discovered models", async () => {
+  it("registers the codex-token provider with the assembled config + discovered models", async () => {
     const registerProvider = vi.fn();
     await factory({ registerProvider } as unknown as ExtensionAPI);
 

@@ -1,5 +1,5 @@
 /**
- * pi extension: register the `codex-pat` provider so pi can use OpenAI Codex models
+ * pi extension: register the `codex-token` provider so pi can use OpenAI Codex models
  * (e.g. gpt-5.5) authenticated with an opaque personal access token (PAT),
  * non-interactively.
  *

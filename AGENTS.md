@@ -5,7 +5,7 @@ where the risky parts are, and the conventions to keep. (Also useful to humans.)
 
 ## What this is
 
-A [pi](https://github.com/earendil-works/pi) extension that registers a **`codex-pat`**
+A [pi](https://github.com/earendil-works/pi) extension that registers a **`codex-token`**
 provider. It lets pi talk to the **OpenAI Codex backend** (`chatgpt.com/backend-api/codex`)
 using model **`gpt-5.5`**, authenticated with an opaque **personal access token (PAT,
 `at-…`)** instead of an interactive ChatGPT OAuth login. Target use: headless/CI.
