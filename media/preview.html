@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Source for the npm/pi-gallery preview card. Render with:
+     chrome --headless=new --force-device-scale-factor=2 --window-size=1200,630 \
+            --screenshot=media/preview.png file://…/media/preview.html -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1200px 700px at 78% -10%, #16233b 0%, #0b0f17 55%);
+    color: #e6edf3;
+    padding: 64px 72px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .top { display: flex; align-items: baseline; gap: 18px; }
+  .title { font-size: 64px; font-weight: 800; letter-spacing: -1.5px; }
+  .title .dim { color: #6e7681; }
+  .badge {
+    font: 600 18px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #7ee787; border: 1px solid #2ea04326; background: #2ea04314;
+    padding: 8px 12px; border-radius: 8px; align-self: center;
+  }
+  .tagline { font-size: 27px; line-height: 1.45; color: #adbac7; max-width: 1000px; margin-top: 22px; }
+  .tagline b { color: #e6edf3; font-weight: 600; }
+  .term {
+    margin-top: 38px; background: #010409; border: 1px solid #1b2430; border-radius: 14px;
+    box-shadow: 0 24px 60px #0006; overflow: hidden;
+  }
+  .bar { display: flex; gap: 9px; padding: 16px 18px; border-bottom: 1px solid #1b2430; }
+  .bar i { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
+  .term pre {
+    font: 23px/1.7 ui-monospace, "SF Mono", Menlo, monospace;
+    padding: 26px 28px; white-space: pre; color: #cdd9e5;
+  }
+  .p { color: #2ea043; } .c { color: #e6edf3; } .o { color: #768390; } .a { color: #6cb6ff; }
+  .foot { display: flex; gap: 26px; font-size: 20px; color: #768390; align-items: center; }
+  .foot b { color: #adbac7; font-weight: 600; }
+  .dot { color: #30363d; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="top">
+      <div class="title">pi-codex-token</div>
+      <div class="badge">pi provider</div>
+    </div>
+    <div class="tagline">
+      Use <b>OpenAI Codex (gpt-5.5)</b> inside <b>pi</b>, authenticated with a
+      personal access token — <b>no interactive login</b>. Built for headless / CI.
+    </div>
+  </div>
+
+  <div class="term">
+    <div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i></div>
+<pre><span class="p">$</span> <span class="c">pi install npm:pi-codex-token</span>
+<span class="p">$</span> <span class="c">pi --provider <span class="a">codex-token</span> --model <span class="a">gpt-5.5</span> -p</span> <span class="c">"ping"</span>
+<span class="o">pong</span></pre>
+  </div>
+
+  <div class="foot">
+    <span><b>provider</b> codex-token</span><span class="dot">•</span>
+    <span><b>auth</b> PAT (at-…)</span><span class="dot">•</span>
+    <span><b>license</b> MIT</span>
+  </div>
+</body>
+</html>
