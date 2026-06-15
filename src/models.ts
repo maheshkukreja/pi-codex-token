@@ -12,15 +12,17 @@ import { costForModel } from "./pricing.js";
  * was text-only; image is unverified against our SSE transport even though the backend
  * advertises it. (Discovered entries use the modalities the backend reports.)
  */
+const FALLBACK_MODEL_ID = "gpt-5.5";
+
 export const FALLBACK_MODELS: ProviderModelConfig[] = [
   {
-    id: "gpt-5.5",
+    id: FALLBACK_MODEL_ID,
     name: "GPT-5.5 (Codex PAT)",
     api: API_ID,
     baseUrl: DEFAULT_CODEX_BASE_URL,
     reasoning: true,
     input: ["text"],
-    cost: costForModel("gpt-5.5"),
+    cost: costForModel(FALLBACK_MODEL_ID), // price the same id we register, not a re-typed literal
     contextWindow: 272000,
     maxTokens: DEFAULT_MAX_TOKENS,
   },
