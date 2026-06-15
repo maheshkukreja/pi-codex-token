@@ -43,7 +43,7 @@ environment where pi runs (a worker image, CI runner, server) and configure it v
 
 1. **Distribute** — publish to npm, or pin a git tag/SHA for an internal build:
    ```bash
-   pi install pi-codex-token                    # from npm
+   pi install npm:pi-codex-token                # from npm
    # or, pinned to an immutable ref:
    pi install <git-url>#<tag-or-sha>
    ```
