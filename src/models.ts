@@ -1,5 +1,6 @@
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import { API_ID, DEFAULT_CODEX_BASE_URL, DEFAULT_MAX_TOKENS } from "./config.js";
+import { costForModel } from "./pricing.js";
 
 /**
  * Static fallback model list. Used when live discovery (see `discover-models.ts`) is
@@ -19,7 +20,7 @@ export const FALLBACK_MODELS: ProviderModelConfig[] = [
     baseUrl: DEFAULT_CODEX_BASE_URL,
     reasoning: true,
     input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    cost: costForModel("gpt-5.5"),
     contextWindow: 272000,
     maxTokens: DEFAULT_MAX_TOKENS,
   },

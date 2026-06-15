@@ -4,7 +4,7 @@
  */
 import * as piai from "@earendil-works/pi-ai";
 
-const required = ["streamSimpleOpenAIResponses", "createAssistantMessageEventStream"];
+const required = ["streamSimpleOpenAIResponses", "createAssistantMessageEventStream", "getModel"];
 const missing = required.filter((s) => typeof piai[s] !== "function");
 
 if (missing.length) {

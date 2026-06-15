@@ -29,6 +29,7 @@ import {
   modelsUrl,
 } from "./config.js";
 import { FALLBACK_MODELS } from "./models.js";
+import { costForModel } from "./pricing.js";
 
 /** The subset of the codex `/models` per-entry shape we consume. */
 interface RawCodexModel {
@@ -49,7 +50,7 @@ function baseConfig(id: string, env: NodeJS.ProcessEnv): ProviderModelConfig {
     baseUrl: codexBaseUrl(env),
     reasoning: true,
     input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    cost: costForModel(id),
     contextWindow: DEFAULT_CONTEXT_WINDOW,
     maxTokens: DEFAULT_MAX_TOKENS,
   };

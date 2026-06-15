@@ -61,6 +61,7 @@ describe("discoverModels — live /models", () => {
       reasoning: true,
       contextWindow: 272000,
       maxTokens: DEFAULT_MAX_TOKENS,
+      cost: { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 0 }, // sourced from pi's registry
     });
 
     const bare = models[1]!;

@@ -73,6 +73,7 @@ backend drift is a one-file edit, not a hunt.
 | `auth.ts` | `resolveCredentials` (PAT precedence + `sk-` rejection), `patFromEnv`, `resolveAccountId` (override → SHA-256(PAT) cache → whoami → dev auth.json), `PatAuthError`, `is401`. Pure, provider-agnostic. | MEDIUM |
 | `discover-models.ts` | `discoverModels(pat)` — live `/models` fetch + `CODEX_MODELS` override + `FALLBACK_MODELS` degrade. Never throws. | MEDIUM |
 | `models.ts` | `FALLBACK_MODELS` — the static `gpt-5.5` list used only when discovery is unavailable. | LOW |
+| `pricing.ts` | `costForModel(id)` — looks up the canonical `cost` from pi's own registry via `getModel(provider, id)`. **No rate numbers live in this repo.** | LOW |
 | `provider.ts` | `streamCodexPat` — composes auth + envelope + the reused `streamSimpleOpenAIResponses`. Thin. | LOW |
 | `index.ts` | The async `ExtensionFactory` default export + `registrationModels()` — `pi.registerProvider(...)`. Thin wiring only. | LOW |
 
@@ -131,7 +132,14 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
   is excluded from coverage, and `skipIf`s when no PAT is in the env. It is the
   contract-drift early-warning a mock cannot give. Run it before/after touching
   `codex-envelope.ts` or `config.ts`.
-- **`scripts/check-exports.mjs`** guards the two pi-ai symbols we import — run in CI.
+- **`scripts/check-exports.mjs`** guards the pi-ai symbols we import
+  (`streamSimpleOpenAIResponses`, `createAssistantMessageEventStream`, `getModel`) — run in CI.
+- **Pricing comes from pi, not from us.** A custom provider supplies its own model defs, so
+  pi multiplies tokens by whatever `cost` we register; if we leave it zero, every cost is $0.
+  `pricing.ts` instead reads the canonical `cost` from pi's registry (`getModel`), so prices
+  track the host pi version with **no hardcoded rates** here. The figures are *notional*
+  (codex-token is a flat subscription, not per-token metered) — a metered-API equivalent for
+  budgeting. Unknown ids get zero. Don't reintroduce a hand-maintained price table.
 - **No build step.** pi loads `src/index.ts` (TypeScript) directly; `type: "module"`.
 - **`@earendil-works/pi-{ai,coding-agent}` are `peerDependencies` (range `"*"`, the pi
   convention), not `dependencies`.** They are also pinned `devDependencies` (a concrete
