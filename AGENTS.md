@@ -133,11 +133,13 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
   `codex-envelope.ts` or `config.ts`.
 - **`scripts/check-exports.mjs`** guards the two pi-ai symbols we import — run in CI.
 - **No build step.** pi loads `src/index.ts` (TypeScript) directly; `type: "module"`.
-- **`@earendil-works/pi-{ai,coding-agent}` are `peerDependencies`, not `dependencies`.**
-  They are also `devDependencies` so local typecheck/test resolve them, but they must
+- **`@earendil-works/pi-{ai,coding-agent}` are `peerDependencies` (range `"*"`, the pi
+  convention), not `dependencies`.** They are also pinned `devDependencies` (a concrete
+  `0.79.x` range) so local typecheck/test resolve a known-good host, but they must
   **never** move to `dependencies` — a bundled second copy would create a divergent
   pi-ai instance and the `Model`/`Context`/stream types would stop being interchangeable
-  with what the host passes in.
+  with what the host passes in. The real compatibility guard is **not** the npm range —
+  it's the `check-exports` CI gate + the live smoke test against the host pi version.
 - **Vendor-neutral.** This is OSS. Do not add company-/deployment-specific names
   (env vars, infra, internal repos). The PAT env is `CODEX_ACCESS_TOKEN` (OpenAI's
   own convention; alias `CODEX_PAT`) — see `PAT_ENV_VARS` in `config.ts` for the
@@ -169,10 +171,10 @@ entries use the modalities the backend reports.
 Discovery uses only the PAT. Don't add a whoami/account-id dependency to it.
 
 ### Bump the supported pi version
-Widen the `peerDependencies`/`devDependencies` ranges, `npm install`, run
-`npm run check-exports` (catches dropped/renamed pi-ai symbols), then `npm test` and the
-smoke test against the new host version. pi-ai churns and was renamed once
-(`@mariozechner/pi-ai` → `@earendil-works/pi-ai`), so treat host bumps as risky.
+Bump the pinned `devDependencies` to the new `0.79.x`/next host version (peer stays `"*"`),
+`npm install`, run `npm run check-exports` (catches dropped/renamed pi-ai symbols), then
+`npm test` and the smoke test against the new host version. pi-ai churns and was renamed
+once (`@mariozechner/pi-ai` → `@earendil-works/pi-ai`), so treat host bumps as risky.
 
 ### 401 handling
 PATs are **not** auto-refreshable (unlike OAuth). On any 401/403 (whoami or backend) the
