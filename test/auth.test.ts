@@ -12,12 +12,15 @@ vi.mock("node:os", () => ({ homedir: vi.fn(() => "/home/test") }));
 
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import {
+  AUTH_FAILURE_MESSAGE,
   PatAuthError,
+  classifyAuthFailure,
   clearMemCache,
   is401,
   resolveAccountId,
   resolveCredentials,
 } from "../src/auth.js";
+import { AUTH_CATEGORY } from "../src/config.js";
 
 const ENOENT = () => Promise.reject(new Error("ENOENT"));
 const fetchOk = (body: unknown) =>
@@ -203,6 +206,80 @@ describe("resolveAccountId", () => {
   it("throws on whoami response-shape drift (no id field)", async () => {
     vi.mocked(readFile).mockImplementation(ENOENT);
     await expect(resolveAccountId("at-g", fetchOk({}), {})).rejects.toThrow(/shape drift/);
+  });
+});
+
+describe("classifyAuthFailure", () => {
+  it.each([401, 403])("→ invalid when whoami rejects the credential (%i)", async (status) => {
+    expect(await classifyAuthFailure("at-x", fetchStatus(status), {})).toBe(AUTH_CATEGORY.invalid);
+  });
+
+  it("→ accessDenied when whoami confirms a live credential (chatgpt_account_id)", async () => {
+    expect(await classifyAuthFailure("at-x", fetchOk({ chatgpt_account_id: "acct" }), {})).toBe(
+      AUTH_CATEGORY.accessDenied,
+    );
+  });
+
+  it("→ accessDenied via the legacy account_id field", async () => {
+    expect(await classifyAuthFailure("at-x", fetchOk({ account_id: "legacy" }), {})).toBe(
+      AUTH_CATEGORY.accessDenied,
+    );
+  });
+
+  it("→ undetermined on a 200 that carries no account-id", async () => {
+    expect(await classifyAuthFailure("at-x", fetchOk({}), {})).toBe(AUTH_CATEGORY.undetermined);
+  });
+
+  it("→ undetermined on a 200 with an unparseable body", async () => {
+    const f = vi.fn(async () => new Response("<html>edge</html>", { status: 200 })) as unknown as typeof fetch;
+    expect(await classifyAuthFailure("at-x", f, {})).toBe(AUTH_CATEGORY.undetermined);
+  });
+
+  it("→ undetermined on a non-ok, non-auth whoami status", async () => {
+    expect(await classifyAuthFailure("at-x", fetchStatus(500), {})).toBe(AUTH_CATEGORY.undetermined);
+  });
+
+  it("→ undetermined when whoami times out or the network fails", async () => {
+    const timeout = vi.fn(async () => {
+      throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+    }) as unknown as typeof fetch;
+    expect(await classifyAuthFailure("at-x", timeout, {})).toBe(AUTH_CATEGORY.undetermined);
+    const network = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch;
+    expect(await classifyAuthFailure("at-x", network, {})).toBe(AUTH_CATEGORY.undetermined);
+  });
+
+  it("propagates a caller-initiated AbortError instead of misdiagnosing it", async () => {
+    const f = vi.fn(async () => {
+      throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    }) as unknown as typeof fetch;
+    await expect(classifyAuthFailure("at-x", f, {}, new AbortController().signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+});
+
+describe("AUTH_FAILURE_MESSAGE", () => {
+  it.each([
+    [AUTH_CATEGORY.invalid, "provider_auth_invalid"],
+    [AUTH_CATEGORY.accessDenied, "provider_access_denied"],
+    [AUTH_CATEGORY.undetermined, "provider_auth_undetermined"],
+  ])("prefixes %s with exactly one bracketed category token", (category, token) => {
+    const msg = AUTH_FAILURE_MESSAGE[category];
+    expect(msg.startsWith(`[${token}] `)).toBe(true);
+    // exactly one bracketed token, at the start (the cloud-match contract)
+    expect(msg.match(/\[[^\]]+\]/g)).toEqual([`[${token}]`]);
+  });
+
+  it("points access-denied at the access-tokens docs and rules out token rotation", () => {
+    const msg = AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.accessDenied];
+    expect(msg).toContain("https://developers.openai.com/codex/enterprise/access-tokens");
+    expect(msg).toMatch(/NOT help/);
+  });
+
+  it("PatAuthError carries the invalid-category message verbatim", () => {
+    expect(new PatAuthError(401).message).toBe(AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.invalid]);
   });
 });
 

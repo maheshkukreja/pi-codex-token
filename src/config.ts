@@ -20,6 +20,23 @@ export const API_ID = "codex-token-responses";
 /** Default codex inference backend. The OpenAI SDK appends `/responses`. */
 export const DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
 
+/**
+ * Machine-matchable category tokens for an auth/access failure. pi's error event has no
+ * structured category field, so these ride as a leading `[token]` substring in the
+ * surfaced `errorMessage` — the documented contract downstream consumers (e.g. the ASR
+ * worker) match on. Stable strings: changing them is a breaking contract change.
+ */
+export const AUTH_CATEGORY = {
+  /** Credential is expired/revoked/unknown — mint a new token. */
+  invalid: "provider_auth_invalid",
+  /** Credential is valid but not authorized to run Codex — fix the access policy. */
+  accessDenied: "provider_access_denied",
+  /** Couldn't verify the credential (whoami unavailable) — cause not established. */
+  undetermined: "provider_auth_undetermined",
+} as const;
+
+export type AuthCategory = (typeof AUTH_CATEGORY)[keyof typeof AUTH_CATEGORY];
+
 /** Default codex auth/whoami host (distinct from the inference host). */
 export const DEFAULT_WHOAMI_URL =
   "https://auth.openai.com/api/accounts/v1/user-auth-credential/whoami";

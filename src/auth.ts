@@ -12,6 +12,8 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  AUTH_CATEGORY,
+  type AuthCategory,
   ENV_ACCOUNT_ID,
   ENV_CODEX_HOME,
   ENV_PAT_PRIMARY,
@@ -33,19 +35,40 @@ export interface ResolvedCredentials {
 }
 
 /**
+ * Human-facing remedy per auth-failure category, prefixed with the machine-matchable
+ * `[category]` token (the documented contract substring downstream consumers match on).
+ * Never includes the PAT value. `Record<AuthCategory, …>` makes the set exhaustive: adding
+ * a category becomes a compile error until its message is written here.
+ */
+export const AUTH_FAILURE_MESSAGE: Record<AuthCategory, string> = {
+  [AUTH_CATEGORY.invalid]:
+    `[${AUTH_CATEGORY.invalid}] Codex PAT rejected: the personal access token is expired, revoked, ` +
+    `or invalid. PATs are NOT auto-refreshable — mint a new one in the ChatGPT admin console ` +
+    `(Settings → Personal access tokens) and update ${ENV_PAT_PRIMARY} (or the provider apiKey / ` +
+    `~/.codex/auth.json). If you switched workspaces, also clear the cached account-id at ` +
+    `~/.pi/agent/codex-token-accountid.json.`,
+  [AUTH_CATEGORY.accessDenied]:
+    `[${AUTH_CATEGORY.accessDenied}] Codex access denied: the credential is valid but this ` +
+    `account is not authorized to run Codex (gpt-5.5). Minting a new token will NOT help — an ` +
+    `admin must grant this workspace/account Codex access, or the OpenAI access policy must be ` +
+    `updated. See https://developers.openai.com/codex/enterprise/access-tokens.`,
+  [AUTH_CATEGORY.undetermined]:
+    `[${AUTH_CATEGORY.undetermined}] Codex auth failed (HTTP 401/403) and the cause could not be ` +
+    `verified — the whoami check was unavailable (timeout/network/5xx). Retry; if it persists, ` +
+    `confirm ${ENV_PAT_PRIMARY} is a current PAT and that the account has Codex access.`,
+};
+
+/**
  * Raised when a PAT is rejected (401/403) by whoami or the codex backend.
  * PATs are NOT auto-refreshable (unlike OAuth) — the only recovery is minting a
  * new one, so the message is actionable.
  */
 export class PatAuthError extends Error {
   constructor(public readonly httpStatus?: number) {
-    super(
-      `Codex PAT rejected${httpStatus ? ` (HTTP ${httpStatus})` : ""}. The personal access ` +
-        `token is expired, revoked, or invalid. PATs are NOT auto-refreshable — mint a new one ` +
-        `in the ChatGPT admin console (Settings → Personal access tokens) and update ` +
-        `${ENV_PAT_PRIMARY} (or the provider apiKey / ~/.codex/auth.json). If you switched workspaces, ` +
-        `also clear the cached account-id at ~/.pi/agent/codex-token-accountid.json.`,
-    );
+    // A PatAuthError is only ever raised once whoami has rejected the credential
+    // (401/403) — i.e. the credential is invalid. So it carries the invalid-category
+    // message verbatim, and the forwarded-error path never needs to re-classify it.
+    super(AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.invalid]);
     this.name = "PatAuthError";
   }
 }
@@ -179,19 +202,31 @@ async function writeDiskCache(key: string, id: string, env: NodeJS.ProcessEnv): 
   }
 }
 
+/**
+ * GET the codex whoami endpoint with the PAT. Always bound by a timeout; also honors
+ * the caller's abort signal if given, so a cancelled request doesn't leave whoami
+ * running to completion. Shared by account-id resolution and failure classification.
+ */
+async function fetchWhoami(
+  pat: string,
+  fetchImpl: FetchImpl,
+  env: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const timeout = AbortSignal.timeout(httpTimeoutMs(env));
+  return fetchImpl(whoamiUrl(env), {
+    headers: { Authorization: `Bearer ${pat}` },
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+}
+
 async function accountIdFromWhoami(
   pat: string,
   fetchImpl: FetchImpl,
   env: NodeJS.ProcessEnv,
   signal?: AbortSignal,
 ): Promise<string> {
-  // Always bound by a timeout; also honor the caller's abort signal if given, so a
-  // cancelled request doesn't leave whoami running to completion.
-  const timeout = AbortSignal.timeout(httpTimeoutMs(env));
-  const res = await fetchImpl(whoamiUrl(env), {
-    headers: { Authorization: `Bearer ${pat}` },
-    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-  });
+  const res = await fetchWhoami(pat, fetchImpl, env, signal);
   if (res.status === 401 || res.status === 403) throw new PatAuthError(res.status);
   if (!res.ok) {
     throw new Error(
@@ -263,4 +298,44 @@ export async function resolveAccountId(
   memCache.set(key, id);
   await writeDiskCache(key, id, env);
   return id;
+}
+
+// --- auth-failure classification ---------------------------------------------
+
+/**
+ * On an inference auth rejection (HTTP 401/403 from the codex backend), an *independent*
+ * whoami check tells the two indistinguishable backend-401 causes apart:
+ *
+ *   - whoami 401/403            → the credential itself is rejected         → `invalid`
+ *   - whoami 200 + account-id   → the credential is valid but Codex-denied  → `accessDenied`
+ *   - whoami 200 w/o account-id → a 200 is only a transport fact; the body
+ *     didn't confirm a live credential                                     → `undetermined`
+ *   - whoami non-ok (5xx, …)    → couldn't verify                          → `undetermined`
+ *   - timeout / network error   → couldn't verify                          → `undetermined`
+ *
+ * A caller-initiated cancel (the passed `signal` fired) is NOT a classification outcome —
+ * the AbortError propagates so the request ends as `aborted`, not misdiagnosed.
+ */
+export async function classifyAuthFailure(
+  pat: string,
+  fetchImpl: FetchImpl = globalThis.fetch,
+  env: NodeJS.ProcessEnv = process.env,
+  signal?: AbortSignal,
+): Promise<AuthCategory> {
+  // Reuse the canonical whoami reader so the (HIGH-volatility) response shape is parsed in
+  // exactly one place. Its outcomes map cleanly onto the three categories:
+  //   - returns a validated account-id  → the credential is live, so the 401 was access  → accessDenied
+  //   - throws PatAuthError (401/403)    → whoami rejected the credential itself          → invalid
+  //   - throws non-ok / missing-id / unparseable / timeout / network                     → undetermined
+  // (A 200 without an account-id throws inside accountIdFromWhoami, so a bare-200
+  // interstitial can never be mistaken for a live credential.)
+  try {
+    await accountIdFromWhoami(pat, fetchImpl, env, signal);
+    return AUTH_CATEGORY.accessDenied;
+  } catch (e) {
+    // A caller-initiated cancel must surface as an abort, never a classification outcome.
+    if ((e as { name?: string })?.name === "AbortError") throw e;
+    if (e instanceof PatAuthError) return AUTH_CATEGORY.invalid;
+    return AUTH_CATEGORY.undetermined;
+  }
 }
