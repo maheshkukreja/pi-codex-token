@@ -20,7 +20,14 @@ import {
   createAssistantMessageEventStream,
   streamSimpleOpenAIResponses,
 } from "@earendil-works/pi-ai";
-import { type FetchImpl, PatAuthError, is401, resolveAccountId, resolveCredentials } from "./auth.js";
+import {
+  AUTH_FAILURE_MESSAGE,
+  type FetchImpl,
+  classifyAuthFailure,
+  is401,
+  resolveAccountId,
+  resolveCredentials,
+} from "./auth.js";
 import { buildHeaders, makeOnPayload } from "./codex-envelope.js";
 import { codexBaseUrl } from "./config.js";
 
@@ -30,6 +37,7 @@ export interface StreamDeps {
   createStream?: typeof createAssistantMessageEventStream;
   resolveCredentialsImpl?: typeof resolveCredentials;
   resolveAccountIdImpl?: typeof resolveAccountId;
+  classifyAuthFailureImpl?: typeof classifyAuthFailure;
   fetchImpl?: FetchImpl;
 }
 
@@ -68,6 +76,8 @@ export function streamCodexPat(
   const createStream = deps.createStream ?? createAssistantMessageEventStream;
   const resolveCredentialsImpl = deps.resolveCredentialsImpl ?? resolveCredentials;
   const resolveAccountIdImpl = deps.resolveAccountIdImpl ?? resolveAccountId;
+  const classifyAuthFailureImpl = deps.classifyAuthFailureImpl ?? classifyAuthFailure;
+  const fetchImpl = deps.fetchImpl ?? globalThis.fetch;
 
   const stream = createStream();
 
@@ -77,12 +87,7 @@ export function streamCodexPat(
       // the signal is also threaded into resolveAccountId so an in-flight whoami aborts.
       options?.signal?.throwIfAborted();
       const { pat } = await resolveCredentialsImpl(options?.apiKey);
-      const accountId = await resolveAccountIdImpl(
-        pat,
-        deps.fetchImpl ?? globalThis.fetch,
-        process.env,
-        options?.signal,
-      );
+      const accountId = await resolveAccountIdImpl(pat, fetchImpl, process.env, options?.signal);
 
       const headers = buildHeaders(pat, accountId, options?.headers ?? {});
       // The inner code only reads model.id/baseUrl/reasoning/compat, not the api
@@ -96,28 +101,27 @@ export function streamCodexPat(
       });
 
       for await (const ev of inner as AsyncIterable<AssistantMessageEvent>) {
-        // The backend 401 arrives as an `error` event (the inner provider catches
-        // SDK errors internally rather than throwing) — remap its message so the
-        // user gets the same actionable "mint a new PAT" text as a whoami 401.
+        // The backend 401/403 arrives as an `error` event (the inner provider catches
+        // SDK errors internally rather than throwing). The backend returns the SAME 401
+        // for an invalid credential AND a valid-but-access-denied one, so an independent
+        // whoami check classifies the cause and we surface an accurate, machine-matchable
+        // message. (A caller-cancel mid-classify throws AbortError → caught below as `aborted`.)
         if (ev.type === "error" && is401(ev.error.errorMessage)) {
-          ev.error.errorMessage = new PatAuthError(401).message;
+          const category = await classifyAuthFailureImpl(pat, fetchImpl, process.env, options?.signal);
+          ev.error.errorMessage = AUTH_FAILURE_MESSAGE[category];
         }
         stream.push(ev);
       }
       stream.end();
     } catch (e) {
-      // Thrown before/around the inner stream: missing/invalid PAT, sk- key, a
-      // whoami 401/403 (PatAuthError), or a cancellation. Funnel 401s through the
-      // actionable message, and report a caller cancellation as `aborted` (pi-ai's
-      // convention) rather than a generic error so callers can branch on it.
-      // (A timeout surfaces as TimeoutError → stays `error`, since the backend hung.)
+      // Thrown before/around the inner stream: missing/invalid PAT, sk- key, a whoami
+      // 401/403 (PatAuthError — its message is already the actionable invalid-credential
+      // text, no re-classification needed), or a cancellation. Report a caller cancel as
+      // `aborted` (pi-ai's convention) so callers can branch on it; everything else is
+      // `error`. (A timeout surfaces as TimeoutError → stays `error`, since whoami hung.)
       const reason: "error" | "aborted" =
         (e as { name?: string })?.name === "AbortError" ? "aborted" : "error";
-      const message = is401(e)
-        ? new PatAuthError(e instanceof PatAuthError ? e.httpStatus : 401).message
-        : e instanceof Error
-          ? e.message
-          : String(e);
+      const message = e instanceof Error ? e.message : String(e);
       stream.push({ type: "error", reason, error: makeErrorMessage(model, message, reason) });
       stream.end();
     }

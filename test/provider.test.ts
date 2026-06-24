@@ -7,12 +7,23 @@ vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
 });
 vi.mock("../src/auth.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/auth.js")>();
-  return { ...actual, resolveCredentials: vi.fn(), resolveAccountId: vi.fn() };
+  return {
+    ...actual,
+    resolveCredentials: vi.fn(),
+    resolveAccountId: vi.fn(),
+    classifyAuthFailure: vi.fn(),
+  };
 });
 
 import { streamSimpleOpenAIResponses } from "@earendil-works/pi-ai";
-import { PatAuthError, resolveAccountId, resolveCredentials } from "../src/auth.js";
-import { OPENAI_BETA } from "../src/config.js";
+import {
+  AUTH_FAILURE_MESSAGE,
+  PatAuthError,
+  classifyAuthFailure,
+  resolveAccountId,
+  resolveCredentials,
+} from "../src/auth.js";
+import { AUTH_CATEGORY, OPENAI_BETA } from "../src/config.js";
 import { streamCodexPat } from "../src/provider.js";
 
 const MODEL: Model<Api> = {
@@ -45,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(resolveCredentials).mockResolvedValue({ pat: "at-x", source: "env" });
   vi.mocked(resolveAccountId).mockResolvedValue("acct-uuid");
+  vi.mocked(classifyAuthFailure).mockResolvedValue(AUTH_CATEGORY.invalid);
   vi.mocked(streamSimpleOpenAIResponses).mockImplementation(
     () => gen([{ type: "done", reason: "stop" }]) as never,
   );
@@ -73,14 +85,44 @@ describe("streamCodexPat (default deps)", () => {
     expect(opts?.headers).toMatchObject({ "X-Trace": "1", "chatgpt-account-id": "acct-uuid" });
   });
 
-  it("remaps a backend 401 error event to the actionable PatAuthError message", async () => {
+  it("classifies a backend 401 error event via whoami and surfaces the category message", async () => {
+    vi.mocked(classifyAuthFailure).mockResolvedValue(AUTH_CATEGORY.accessDenied);
     vi.mocked(streamSimpleOpenAIResponses).mockImplementation(
       () => gen([errorEvent("OpenAI API error (401): bad token")]) as never,
     );
     const ev = (await collect(streamCodexPat(MODEL, CONTEXT, {})))[0]!;
-    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe(
-      new PatAuthError(401).message,
+    expect(vi.mocked(classifyAuthFailure)).toHaveBeenCalledWith(
+      "at-x",
+      expect.any(Function),
+      process.env,
+      undefined,
     );
+    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe(
+      AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.accessDenied],
+    );
+  });
+
+  it("surfaces the invalid-credential message when whoami rejects the PAT", async () => {
+    vi.mocked(classifyAuthFailure).mockResolvedValue(AUTH_CATEGORY.invalid);
+    vi.mocked(streamSimpleOpenAIResponses).mockImplementation(
+      () => gen([errorEvent("OpenAI API error (403): nope")]) as never,
+    );
+    const ev = (await collect(streamCodexPat(MODEL, CONTEXT, {})))[0]!;
+    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe(
+      AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.invalid],
+    );
+  });
+
+  it("propagates a caller-cancel during classification as reason 'aborted'", async () => {
+    vi.mocked(classifyAuthFailure).mockRejectedValue(
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
+    );
+    vi.mocked(streamSimpleOpenAIResponses).mockImplementation(
+      () => gen([errorEvent("OpenAI API error (401): bad token")]) as never,
+    );
+    const ev = (await collect(streamCodexPat(MODEL, CONTEXT, {})))[0]!;
+    expect((ev as { reason: string }).reason).toBe("aborted");
+    expect((ev as { error: { stopReason: string } }).error.stopReason).toBe("aborted");
   });
 
   it("passes through a non-401 backend error event unchanged", async () => {
@@ -109,12 +151,14 @@ describe("streamCodexPat (default deps)", () => {
     );
   });
 
-  it("maps a non-PatAuthError error carrying HTTP 401 status to PatAuthError", async () => {
+  it("surfaces a thrown error's own message without re-classifying (catch path)", async () => {
+    // A thrown auth failure is only ever a PatAuthError (whoami already classified it);
+    // any other thrown Error surfaces its own message verbatim — no whoami re-check.
     vi.mocked(resolveCredentials).mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
     const ev = (await collect(streamCodexPat(MODEL, CONTEXT, {})))[0]!;
-    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe(
-      new PatAuthError(401).message,
-    );
+    expect((ev as { reason: string }).reason).toBe("error");
+    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe("Unauthorized");
+    expect(vi.mocked(classifyAuthFailure)).not.toHaveBeenCalled();
   });
 
   it("stringifies a non-Error rejection", async () => {
@@ -159,5 +203,21 @@ describe("streamCodexPat (explicit deps)", () => {
       Authorization: "Bearer at-inj",
       "chatgpt-account-id": "inj-acct",
     });
+  });
+
+  it("uses an injected classifyAuthFailureImpl for a backend 401 event", async () => {
+    const classifyAuthFailureImpl = vi.fn(async () => AUTH_CATEGORY.undetermined);
+    const streamImpl = vi.fn(
+      (..._args: Parameters<typeof streamSimpleOpenAIResponses>) =>
+        gen([errorEvent("OpenAI API error (401): bad token")]) as never,
+    );
+    const ev = (await collect(
+      streamCodexPat(MODEL, CONTEXT, { apiKey: "at-x" }, { streamImpl, classifyAuthFailureImpl }),
+    ))[0]!;
+    expect(classifyAuthFailureImpl).toHaveBeenCalledOnce();
+    expect(vi.mocked(classifyAuthFailure)).not.toHaveBeenCalled();
+    expect((ev as { error: { errorMessage: string } }).error.errorMessage).toBe(
+      AUTH_FAILURE_MESSAGE[AUTH_CATEGORY.undetermined],
+    );
   });
 });
