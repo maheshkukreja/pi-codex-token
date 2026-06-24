@@ -117,7 +117,11 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
   `catch` (covers whoami/credential failures that *do* throw) **and** while forwarding
   inner `error` events (covers the backend 401). Keep both.
 - We re-tag the model as `Model<"openai-responses">` for the inner call only; the inner
-  code reads `model.id/baseUrl/reasoning/compat`, not the api string, for body-building.
+  code reads `model.id/baseUrl/reasoning/compat` for body-building. **As of pi 0.79.10 it
+  also validates `model.api === "openai-responses"` and rejects anything else with
+  `"Mismatched api"`** — so `provider.ts` sets `api: "openai-responses"` on `codexModel` at
+  **runtime** (not just a TS cast). A unit test pins this, but the mock can't catch a host
+  re-validation: the live smoke/verify is the real guard on host bumps.
 
 ## Testing & conventions
 

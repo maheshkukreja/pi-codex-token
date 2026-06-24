@@ -39,7 +39,7 @@ export default async function (pi: ExtensionAPI): Promise<void> {
     baseUrl: DEFAULT_CODEX_BASE_URL,
     apiKey: `$${ENV_PAT_PRIMARY}`,
     api: API_ID,
-    streamSimple: (model, context, options) => streamCodexPat(model, context, options),
+    streamSimple: (model, context, options?) => streamCodexPat(model, context, options),
     models: await registrationModels(),
   });
 }

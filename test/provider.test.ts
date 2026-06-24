@@ -69,6 +69,9 @@ describe("streamCodexPat (default deps)", () => {
 
     const [codexModel, ctx, opts] = vi.mocked(streamSimpleOpenAIResponses).mock.calls[0]!;
     expect(codexModel.baseUrl).toBe("https://chatgpt.com/backend-api/codex");
+    // Must be re-tagged at RUNTIME (not just cast): pi 0.79.10+ validates the inner
+    // model.api === "openai-responses" or rejects with "Mismatched api".
+    expect(codexModel.api).toBe("openai-responses");
     expect(ctx).toBe(CONTEXT);
     expect(opts?.headers).toMatchObject({
       Authorization: "Bearer at-x",

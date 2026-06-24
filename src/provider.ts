@@ -90,9 +90,11 @@ export function streamCodexPat(
       const accountId = await resolveAccountIdImpl(pat, fetchImpl, process.env, options?.signal);
 
       const headers = buildHeaders(pat, accountId, options?.headers ?? {});
-      // The inner code only reads model.id/baseUrl/reasoning/compat, not the api
-      // string, for body-building — so re-tagging to "openai-responses" is safe.
-      const codexModel = { ...model, baseUrl: codexBaseUrl() } as Model<"openai-responses">;
+      // Re-tag to "openai-responses" for the inner call: it builds the body from
+      // model.id/baseUrl/reasoning/compat, and (as of pi 0.79.10) validates that
+      // model.api === "openai-responses" — so we must set the api field at RUNTIME,
+      // not just cast the type, or the inner stream rejects it ("Mismatched api").
+      const codexModel = { ...model, api: "openai-responses", baseUrl: codexBaseUrl() } as Model<"openai-responses">;
 
       const inner = streamImpl(codexModel, context, {
         ...options,
