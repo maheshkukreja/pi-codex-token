@@ -1,6 +1,6 @@
 {
   "name": "pi-codex-token",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "pi provider plugin: use gpt-5.5 on the OpenAI Codex backend via a personal access token (PAT), non-interactively.",
   "type": "module",
   "license": "MIT",
