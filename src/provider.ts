@@ -18,8 +18,8 @@ import {
   type Model,
   type SimpleStreamOptions,
   createAssistantMessageEventStream,
-  streamSimpleOpenAIResponses,
 } from "@earendil-works/pi-ai";
+import { streamSimpleOpenAIResponses } from "@earendil-works/pi-ai/compat";
 import {
   AUTH_FAILURE_MESSAGE,
   type FetchImpl,
@@ -90,10 +90,9 @@ export function streamCodexPat(
       const accountId = await resolveAccountIdImpl(pat, fetchImpl, process.env, options?.signal);
 
       const headers = buildHeaders(pat, accountId, options?.headers ?? {});
-      // Re-tag to "openai-responses" for the inner call: it builds the body from
-      // model.id/baseUrl/reasoning/compat, and (as of pi 0.79.10) validates that
-      // model.api === "openai-responses" — so we must set the api field at RUNTIME,
-      // not just cast the type, or the inner stream rejects it ("Mismatched api").
+      // Re-tag to "openai-responses" at RUNTIME (not just a TS cast): the inner stream
+      // builds the body from model.id/baseUrl/reasoning/compat and validates that
+      // model.api === "openai-responses", rejecting anything else ("Mismatched api").
       const codexModel = { ...model, api: "openai-responses", baseUrl: codexBaseUrl() } as Model<"openai-responses">;
 
       const inner = streamImpl(codexModel, context, {

@@ -46,6 +46,8 @@ export function makeOnPayload(systemPrompt: string | undefined) {
     // 3. Enforce codex gates (buildParams already sets these; belt-and-suspenders).
     body.store = false;
     body.stream = true;
+    // 4. codex 400s on max_output_tokens; the proven-200 envelope omits it.
+    delete body.max_output_tokens;
     return body;
   };
 }
@@ -57,8 +59,8 @@ export function makeOnPayload(systemPrompt: string | undefined) {
 export function buildHeaders(
   pat: string,
   accountId: string,
-  extra: Record<string, string> = {},
-): Record<string, string> {
+  extra: Record<string, string | null> = {},
+): Record<string, string | null> {
   return {
     ...extra,
     Authorization: `Bearer ${pat}`,

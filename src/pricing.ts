@@ -18,7 +18,7 @@
  * budgeting/usage comparison, not an actual invoice.
  */
 
-import { getModel } from "@earendil-works/pi-ai";
+import { getModel } from "@earendil-works/pi-ai/compat";
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 
 type Cost = ProviderModelConfig["cost"];

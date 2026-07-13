@@ -1,8 +1,8 @@
 import type { Api, AssistantMessageEvent, Context, Model } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@earendil-works/pi-ai", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@earendil-works/pi-ai")>();
+vi.mock("@earendil-works/pi-ai/compat", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@earendil-works/pi-ai/compat")>();
   return { ...actual, streamSimpleOpenAIResponses: vi.fn() };
 });
 vi.mock("../src/auth.js", async (importOriginal) => {
@@ -15,7 +15,7 @@ vi.mock("../src/auth.js", async (importOriginal) => {
   };
 });
 
-import { streamSimpleOpenAIResponses } from "@earendil-works/pi-ai";
+import { streamSimpleOpenAIResponses } from "@earendil-works/pi-ai/compat";
 import {
   AUTH_FAILURE_MESSAGE,
   PatAuthError,
@@ -69,7 +69,7 @@ describe("streamCodexPat (default deps)", () => {
 
     const [codexModel, ctx, opts] = vi.mocked(streamSimpleOpenAIResponses).mock.calls[0]!;
     expect(codexModel.baseUrl).toBe("https://chatgpt.com/backend-api/codex");
-    // Must be re-tagged at RUNTIME (not just cast): pi 0.79.10+ validates the inner
+    // Must be re-tagged at RUNTIME (not just cast): the inner stream validates
     // model.api === "openai-responses" or rejects with "Mismatched api".
     expect(codexModel.api).toBe("openai-responses");
     expect(ctx).toBe(CONTEXT);

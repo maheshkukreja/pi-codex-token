@@ -13,6 +13,7 @@ function recordedPayload() {
     stream: true,
     store: false,
     reasoning: { effort: "none" },
+    max_output_tokens: 128000,
   };
 }
 
@@ -26,6 +27,7 @@ describe("makeOnPayload", () => {
     expect(out.input).toHaveLength(1);
     expect(out.store).toBe(false);
     expect(out.stream).toBe(true);
+    expect(out).not.toHaveProperty("max_output_tokens");
   });
 
   it("uses the default instructions when systemPrompt is missing or empty", () => {
