@@ -58,7 +58,7 @@ export const DEFAULT_MAX_TOKENS = 128000;
 /** contextWindow default when /models omits it. */
 export const DEFAULT_CONTEXT_WINDOW = 272000;
 /** `client_version` query param the /models endpoint requires. */
-export const DEFAULT_CODEX_CLIENT_VERSION = "0.139.0";
+export const DEFAULT_CODEX_CLIENT_VERSION = "0.144.3";
 /** Response timeout (ms) for the whoami / models fetches, so they can't hang forever. */
 export const DEFAULT_HTTP_TIMEOUT_MS = 10000;
 

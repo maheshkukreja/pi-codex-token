@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS } from "../src/config.js";
+import { DEFAULT_CODEX_CLIENT_VERSION, DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS } from "../src/config.js";
 import { discoverModels } from "../src/discover-models.js";
 import { FALLBACK_MODELS } from "../src/models.js";
 
@@ -73,7 +73,7 @@ describe("discoverModels — live /models", () => {
     });
 
     const [url, init] = fetchImpl.mock.calls[0]!;
-    expect(String(url)).toContain("/models?client_version=0.139.0");
+    expect(String(url)).toContain(`/models?client_version=${DEFAULT_CODEX_CLIENT_VERSION}`);
     expect(init?.headers).toMatchObject({ Authorization: "Bearer at-tok" });
   });
 
