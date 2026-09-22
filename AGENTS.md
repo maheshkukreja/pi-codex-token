@@ -69,7 +69,7 @@ backend drift is a one-file edit, not a hunt.
 | File | Owns | Volatility |
 |---|---|---|
 | `config.ts` | All constants + env-var names (base URLs, betas, `originator`, env names) and the env-derived `codexBaseUrl()` / `whoamiUrl()`. **No magic strings elsewhere.** | **HIGH** — contract values live here |
-| `codex-envelope.ts` | `makeOnPayload(systemPrompt)` (the body transform) + `buildHeaders(pat, accountId)`. **THE volatile bit.** | **HIGH** — edit here when the backend drifts |
+| `codex-envelope.ts` | `makeOnPayload()` (the body transform) + `buildHeaders(pat, accountId)`. **THE volatile bit.** | **HIGH** — edit here when the backend drifts |
 | `auth.ts` | `resolveCredentials` (PAT precedence + `sk-` rejection), `patFromEnv`, `resolveAccountId` (override → SHA-256(PAT) cache → whoami → dev auth.json), `PatAuthError`, `is401`. Pure, provider-agnostic. | MEDIUM |
 | `discover-models.ts` | `discoverModels(pat)` — live `/models` fetch + `CODEX_MODELS` override + `FALLBACK_MODELS` degrade. Never throws. | MEDIUM |
 | `models.ts` | `FALLBACK_MODELS` — the static `gpt-5.5` list used only when discovery is unavailable. | LOW |
@@ -91,7 +91,7 @@ pi → streamSimple(model, ctx, opts)              [provider.ts: streamCodexPat]
         ├─ accountId = resolveAccountId(pat)                   [auth.ts] (whoami unless cached/overridden)
         ├─ headers   = buildHeaders(pat, accountId)            [codex-envelope.ts]
         ├─ inner     = streamSimpleOpenAIResponses({...model, baseUrl: …/codex}, ctx,
-        │                  { ...opts, headers, onPayload: makeOnPayload(ctx.systemPrompt) })
+        │                  { ...opts, headers, onPayload: makeOnPayload() })
         └─ for await ev of inner → push to our stream (remap 401 → PatAuthError); then end()
 ```
 
@@ -122,6 +122,13 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
   `"Mismatched api"`** — so `provider.ts` sets `api: "openai-responses"` on `codexModel` at
   **runtime** (not just a TS cast). A unit test pins this, but the mock can't catch a host
   re-validation: the live smoke/verify is the real guard on host bumps.
+- **The system prompt is read from the payload, not the context.** Since pi 0.86 providers
+  get a branded `TranscriptContext` with **no `systemPrompt` field** — the prompt is a leading
+  `system` message, which `convertResponsesMessages` renders as a `developer`/`system` turn in
+  `input` (older pi did the same from `context.systemPrompt`). `makeOnPayload` hoists those
+  turns into `instructions`, so it works on both shapes. Reading `context.systemPrompt` would
+  silently send the default instructions on pi >= 0.86; `envelope.test.ts` runs the host's real
+  body builder to pin this.
 
 ## Testing & conventions
 
@@ -147,7 +154,7 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
 - **No build step.** pi loads `src/index.ts` (TypeScript) directly; `type: "module"`.
 - **`@earendil-works/pi-{ai,coding-agent}` are `peerDependencies` (range `"*"`, the pi
   convention), not `dependencies`.** They are also pinned `devDependencies` (a concrete
-  `0.79.x` range) so local typecheck/test resolve a known-good host, but they must
+  `0.87.x` range) so local typecheck/test resolve a known-good host, but they must
   **never** move to `dependencies` — a bundled second copy would create a divergent
   pi-ai instance and the `Model`/`Context`/stream types would stop being interchangeable
   with what the host passes in. The real compatibility guard is **not** the npm range —
@@ -183,7 +190,7 @@ entries use the modalities the backend reports.
 Discovery uses only the PAT. Don't add a whoami/account-id dependency to it.
 
 ### Bump the supported pi version
-Bump the pinned `devDependencies` to the new `0.79.x`/next host version (peer stays `"*"`),
+Bump the pinned `devDependencies` to the new host version (peer stays `"*"`),
 `npm install`, run `npm run check-exports` (catches dropped/renamed pi-ai symbols), then
 `npm test` and the smoke test against the new host version. pi-ai churns and was renamed
 once (`@mariozechner/pi-ai` → `@earendil-works/pi-ai`), so treat host bumps as risky.
