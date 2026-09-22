@@ -1,4 +1,4 @@
-import type { Api, AssistantMessageEvent, Context, Model } from "@earendil-works/pi-ai";
+import { normalizeContext, type Api, type AssistantMessageEvent, type Model } from "@earendil-works/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@earendil-works/pi-ai/compat", async (importOriginal) => {
@@ -38,7 +38,8 @@ const MODEL: Model<Api> = {
   contextWindow: 272000,
   maxTokens: 128000,
 };
-const CONTEXT: Context = { systemPrompt: "You are terse.", messages: [] };
+// Built the way the host does (pi >= 0.86 hands providers a normalized TranscriptContext).
+const CONTEXT = normalizeContext({ systemPrompt: "You are terse.", messages: [] });
 
 async function* gen(events: Partial<AssistantMessageEvent>[]) {
   for (const e of events) yield e as AssistantMessageEvent;

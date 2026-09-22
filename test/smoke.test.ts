@@ -9,7 +9,7 @@
  * skipped otherwise. The gate uses the SAME precedence list as resolveCredentials so the
  * test runs whenever a PAT is available under any accepted name.
  */
-import type { Api, AssistantMessageEvent, Context, Model } from "@earendil-works/pi-ai";
+import { normalizeContext, type Api, type AssistantMessageEvent, type Model } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import { API_ID, DEFAULT_CODEX_BASE_URL, PAT_ENV_VARS } from "../src/config.js";
 import { discoverModels } from "../src/discover-models.js";
@@ -32,10 +32,10 @@ describe("live codex backend", () => {
         provider: "codex-token",
         baseUrl: DEFAULT_CODEX_BASE_URL,
       };
-      const context: Context = {
+      const context = normalizeContext({
         systemPrompt: "You are a terse assistant.",
         messages: [{ role: "user", content: "Reply with exactly: SMOKE_OK", timestamp: Date.now() }],
-      };
+      });
 
       const stream = streamCodexPat(model, context, { apiKey: PAT });
 
