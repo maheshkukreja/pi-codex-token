@@ -36,15 +36,15 @@
     ]
   },
   "engines": {
-    "node": ">=20.3"
+    "node": ">=22.19.0"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": ">=0.79.0 <0.81.0",
-    "@earendil-works/pi-coding-agent": ">=0.79.0 <0.81.0",
-    "@types/node": "^20.0.0",
-    "@vitest/coverage-v8": "^4.1.8",
-    "typescript": "^6.0.0",
-    "vitest": "^4.1.8"
+    "@earendil-works/pi-ai": "^0.87.1",
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@types/node": "^22.20.4",
+    "@vitest/coverage-v8": "^5.0.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

@@ -19,30 +19,33 @@
  * requires a TOP-LEVEL `instructions` string. `convertResponsesMessages` instead
  * inlines the system prompt as a `developer` turn inside `input`, so the backend
  * returns 400 {"detail":"Instructions are required"}. `makeOnPayload` reproduces
- * the proven shape post-hoc.
+ * the proven shape post-hoc by hoisting those turns into `instructions`.
+ *
+ * The prompt is read from the payload, not from `context.systemPrompt`: pi >= 0.86
+ * passes a `TranscriptContext` with no `systemPrompt` field (the prompt is a leading
+ * `system` message), but every pi version renders it into these `input` turns.
  */
 
 import { DEFAULT_INSTRUCTIONS, OPENAI_BETA, ORIGINATOR } from "./config.js";
 
-/**
- * Body transform for the `onPayload` hook. `onPayload` only receives
- * `(payload, model)` — not `context` — so the system prompt is captured here in a
- * closure. Carried verbatim from the proven spike.
- */
-export function makeOnPayload(systemPrompt: string | undefined) {
+/** Body transform for the `onPayload` hook. */
+export function makeOnPayload() {
   return (payload: unknown): unknown => {
     const body = payload as Record<string, unknown> & { input?: unknown[] };
-    // 1. Hoist the system prompt to a top-level `instructions` (codex gate).
-    body.instructions =
-      systemPrompt && systemPrompt.length > 0 ? systemPrompt : DEFAULT_INSTRUCTIONS;
-    // 2. Drop the leading developer/system turn convertResponsesMessages injected
-    //    (it would otherwise duplicate the instructions inside `input`).
+    // 1-2. Move the developer/system turns convertResponsesMessages injected into a
+    //      top-level `instructions` (codex gate), dropping them from `input`.
+    const prompts: string[] = [];
     if (Array.isArray(body.input)) {
       body.input = body.input.filter((m) => {
-        const role = (m as { role?: string })?.role;
-        return role !== "system" && role !== "developer";
+        const { role, content } = (m ?? {}) as { role?: string; content?: unknown };
+        if (role !== "system" && role !== "developer") return true;
+        if (typeof content === "string" && content.length > 0) prompts.push(content);
+        return false;
       });
     }
+    // No turn to hoist → keep an existing `instructions` (idempotent re-run), else default.
+    const existing = typeof body.instructions === "string" ? body.instructions : "";
+    body.instructions = prompts.length > 0 ? prompts.join("\n\n") : existing || DEFAULT_INSTRUCTIONS;
     // 3. Enforce codex gates (buildParams already sets these; belt-and-suspenders).
     body.store = false;
     body.stream = true;

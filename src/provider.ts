@@ -14,7 +14,6 @@ import {
   type AssistantMessage,
   type AssistantMessageEvent,
   type AssistantMessageEventStream,
-  type Context,
   type Model,
   type SimpleStreamOptions,
   createAssistantMessageEventStream,
@@ -68,7 +67,8 @@ function makeErrorMessage(
 
 export function streamCodexPat(
   model: Model<Api>,
-  context: Context,
+  // Context (pi < 0.86) or TranscriptContext (pi >= 0.86) — whatever the host's inner stream takes.
+  context: Parameters<typeof streamSimpleOpenAIResponses>[1],
   options?: SimpleStreamOptions,
   deps: StreamDeps = {},
 ): AssistantMessageEventStream {
@@ -98,7 +98,7 @@ export function streamCodexPat(
       const inner = streamImpl(codexModel, context, {
         ...options,
         headers,
-        onPayload: makeOnPayload(context.systemPrompt),
+        onPayload: makeOnPayload(),
       });
 
       for await (const ev of inner as AsyncIterable<AssistantMessageEvent>) {
