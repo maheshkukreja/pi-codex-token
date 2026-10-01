@@ -12,11 +12,11 @@
  *   provider.ts        streamCodexPat (own-stream + async IIFE)
  */
 
-import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { resolveCredentials } from "./auth.js";
 import { API_ID, DEFAULT_CODEX_BASE_URL, ENV_PAT_PRIMARY, PROVIDER_NAME } from "./config.js";
 import { discoverModels } from "./discover-models.js";
-import { FALLBACK_MODELS } from "./models.js";
+import { FALLBACK_MODELS, type ChatModelConfig } from "./models.js";
 import { streamCodexPat } from "./provider.js";
 
 /**
@@ -24,7 +24,7 @@ import { streamCodexPat } from "./provider.js";
  * (env or ~/.codex/auth.json), discover the account's models; otherwise use the static
  * fallback. Never throws — registration must not break on a discovery failure.
  */
-export async function registrationModels(): Promise<ProviderModelConfig[]> {
+export async function registrationModels(): Promise<ChatModelConfig[]> {
   let pat: string;
   try {
     pat = (await resolveCredentials()).pat;
