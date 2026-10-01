@@ -16,7 +16,6 @@
  * Discovery never throws — it always degrades to FALLBACK_MODELS so registration can't break.
  */
 
-import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import type { FetchImpl } from "./auth.js";
 import {
   API_ID,
@@ -28,7 +27,7 @@ import {
   httpTimeoutMs,
   modelsUrl,
 } from "./config.js";
-import { FALLBACK_MODELS } from "./models.js";
+import { FALLBACK_MODELS, type ChatModelConfig } from "./models.js";
 import { costForModel } from "./pricing.js";
 
 /** The subset of the codex `/models` per-entry shape we consume. */
@@ -42,7 +41,7 @@ interface RawCodexModel {
   supported_in_api?: boolean;
 }
 
-function baseConfig(id: string, env: NodeJS.ProcessEnv): ProviderModelConfig {
+function baseConfig(id: string, env: NodeJS.ProcessEnv): ChatModelConfig {
   return {
     id,
     name: id,
@@ -56,7 +55,7 @@ function baseConfig(id: string, env: NodeJS.ProcessEnv): ProviderModelConfig {
   };
 }
 
-function toConfig(raw: RawCodexModel, env: NodeJS.ProcessEnv): ProviderModelConfig | undefined {
+function toConfig(raw: RawCodexModel, env: NodeJS.ProcessEnv): ChatModelConfig | undefined {
   // Type-guard every field: the /models payload is untrusted wire data, so a single
   // malformed entry (e.g. a non-string slug) must be skipped, not throw inside .map()
   // and degrade the whole batch to FALLBACK_MODELS.
@@ -76,7 +75,7 @@ function toConfig(raw: RawCodexModel, env: NodeJS.ProcessEnv): ProviderModelConf
 }
 
 /** Build configs for an explicit CODEX_MODELS override (generic defaults per id). */
-function fromOverride(value: string, env: NodeJS.ProcessEnv): ProviderModelConfig[] {
+function fromOverride(value: string, env: NodeJS.ProcessEnv): ChatModelConfig[] {
   return value
     .split(",")
     .map((s) => s.trim())
@@ -88,7 +87,7 @@ export async function discoverModels(
   pat: string,
   fetchImpl: FetchImpl = globalThis.fetch,
   env: NodeJS.ProcessEnv = process.env,
-): Promise<ProviderModelConfig[]> {
+): Promise<ChatModelConfig[]> {
   const override = env[ENV_MODELS]?.trim();
   if (override) {
     const models = fromOverride(override, env);
@@ -106,7 +105,7 @@ export async function discoverModels(
     const models = (data.models ?? [])
       .filter((m) => m.visibility === "list" && m.supported_in_api !== false)
       .map((m) => toConfig(m, env))
-      .filter((m): m is ProviderModelConfig => m !== undefined);
+      .filter((m): m is ChatModelConfig => m !== undefined);
     return models.length ? models : FALLBACK_MODELS;
   } catch {
     return FALLBACK_MODELS;

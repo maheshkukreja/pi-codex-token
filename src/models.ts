@@ -3,6 +3,13 @@ import { API_ID, DEFAULT_CODEX_BASE_URL, DEFAULT_MAX_TOKENS } from "./config.js"
 import { costForModel } from "./pricing.js";
 
 /**
+ * The chat-model branch of pi's `ProviderModelConfig`. pi 1.0 split that type into a
+ * chat | image | classifier union but exports only the union, so we derive the chat
+ * member here (on older pi, with no union, this is just `ProviderModelConfig`).
+ */
+export type ChatModelConfig = Extract<ProviderModelConfig, { reasoning: boolean }>;
+
+/**
  * Static fallback model list. Used when live discovery (see `discover-models.ts`) is
  * unavailable — no PAT at registration, the `/models` endpoint errors, or it returns
  * nothing. The account's real model set is normally discovered dynamically.
@@ -14,7 +21,7 @@ import { costForModel } from "./pricing.js";
  */
 const FALLBACK_MODEL_ID = "gpt-5.5";
 
-export const FALLBACK_MODELS: ProviderModelConfig[] = [
+export const FALLBACK_MODELS: ChatModelConfig[] = [
   {
     id: FALLBACK_MODEL_ID,
     name: "GPT-5.5 (Codex PAT)",

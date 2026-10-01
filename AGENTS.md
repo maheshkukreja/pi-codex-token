@@ -154,7 +154,7 @@ used does **not** work headless — a worker only has the PAT, no `~/.codex/auth
 - **No build step.** pi loads `src/index.ts` (TypeScript) directly; `type: "module"`.
 - **`@earendil-works/pi-{ai,coding-agent}` are `peerDependencies` (range `"*"`, the pi
   convention), not `dependencies`.** They are also pinned `devDependencies` (a concrete
-  `0.87.x` range) so local typecheck/test resolve a known-good host, but they must
+  `1.0.x` range) so local typecheck/test resolve a known-good host, but they must
   **never** move to `dependencies` — a bundled second copy would create a divergent
   pi-ai instance and the `Model`/`Context`/stream types would stop being interchangeable
   with what the host passes in. The real compatibility guard is **not** the npm range —
